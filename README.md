@@ -158,15 +158,12 @@ gnoland config set telemetry.prometheus_listen_addr ":17660"
 
 ---
 
-### 6. Load snapshot (fast sync) — optional
+### 6. Load snapshot (fast sync)
 
-The topaz guide pointed at a third-party snapshot
-(`snapshots.luckystar.asia/gnolandtopaz/...`). That snapshot is specific to
-topaz's chain data and chain-id, so it will **not** work for sapphire —
-loading it here would just point your node at the wrong chain state.
-
-If you find or maintain a snapshot source for sapphire specifically, the
-mechanics are the same as before:
+Skip hours of syncing with a community snapshot for sapphire. Note this is a
+**different compression format than the old topaz snapshot** — this one is
+`.tar.lz4`, not `.tar.zst`, so the extraction command uses `lz4` instead of
+`zstd`.
 
 ```bash
 # Stop node if running
@@ -174,14 +171,49 @@ sudo systemctl stop gnoland 2>/dev/null || pkill -f "gnoland start" 2>/dev/null 
 
 # Clear old data (keys and config are NOT touched)
 rm -rf ~/gno/gnoland-data/db ~/gno/gnoland-data/wal
+mkdir -p ~/gno/gnoland-data
 
-# Download and extract snapshot (replace URL with a sapphire snapshot source)
-curl -L https://YOUR-SAPPHIRE-SNAPSHOT-URL/gnoland_data.tar.zst \
-  | zstd -d \
+# Download and extract snapshot
+curl -L https://server-9.hazennetworksolutions.com/gnoland-db-snapshot.tar.lz4 \
+  | lz4 -d \
   | tar -xf - -C ~/gno/gnoland-data
 ```
 
-Otherwise, skip this step and let the node sync from genesis.
+> Requires the `liblz4-tool` package for the `lz4` CLI:
+> `sudo apt install -y liblz4-tool`
+
+The stable URL above always points at the latest snapshot, so its checksum
+changes over time — it's not pinned in this guide. This is a third-party
+snapshot host (not run by Anthropic or gno.land); use your own judgment about
+trusting it, same as any community-provided chain data dump. Sample metadata
+for a given snapshot generation looks like this:
+
+```json
+{
+  "chainId": "sapphire-1",
+  "file": "gnoland_sapphire_2026-08-11_80804.tar.lz4",
+  "url": "https://server-9.hazennetworksolutions.com/gnoland-sapphire/gnoland_sapphire_2026-08-11_80804.tar.lz4",
+  "stableUrl": "https://server-9.hazennetworksolutions.com/gnoland-db-snapshot.tar.lz4",
+  "blockHeight": 80804,
+  "sizeBytes": 146174656,
+  "sha256": "12404e412451ae83dd09aad576be87018800eefc596425c44006811f6701d51c",
+  "generatedAt": "2026-08-11T09:17:04Z",
+  "compression": "lz4",
+  "contents": ["db", "wal"]
+}
+```
+
+If you want to pin a specific snapshot generation instead of always tracking
+the latest, download the dated `url` (e.g.
+`gnoland_sapphire_2026-08-11_80804.tar.lz4`) and verify against that
+generation's own `sha256` before extracting:
+
+```bash
+curl -L -o snapshot.tar.lz4 \
+  https://server-9.hazennetworksolutions.com/gnoland-sapphire/gnoland_sapphire_2026-08-11_80804.tar.lz4
+shasum -a 256 snapshot.tar.lz4
+# compare against that generation's sha256 in its metadata before extracting
+```
 
 ---
 
@@ -366,7 +398,6 @@ gnoland secrets get validator_key
 gnokey list
 ```
 
----
 
 ## Explorer & resources
 
