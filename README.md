@@ -408,7 +408,7 @@ gnokey list
 | Valopers | https://sapphire.testnets.gno.land/r/gnops/valopers |
 | Active validators | https://sapphire.testnets.gno.land/r/sys/validators/v3 |
 | RPC | https://rpc.sapphire.testnets.gno.land |
-| Snapshot | *(no official third-party snapshot known yet — add your own here)* |
+| Snapshot | https://server-9.hazennetworksolutions.com/gnoland-db-snapshot.tar.lz4 |
 
 ---
 
