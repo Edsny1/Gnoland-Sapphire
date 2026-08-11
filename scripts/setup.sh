@@ -9,11 +9,11 @@ CHAIN_ID="sapphire-1"
 GNO_BRANCH="chain/sapphire"
 GENESIS_URL="https://github.com/gnolang/gno/releases/download/chain/sapphire/genesis.json"
 GENESIS_SHA256="d511e0e5b767d4e53f5c1afeeea1bc61d2c7b2118146c820f1f3e4296f67498e"
-# No known third-party snapshot for sapphire yet (the topaz one is chain-specific
-# and will NOT work here — different chain-id/genesis). Fill this in if/when a
-# sapphire snapshot source becomes available; option [4] will warn and skip
-# if it's left empty.
-SNAPSHOT_URL=""
+# Sapphire snapshot (community-hosted, third-party — not run by Anthropic or
+# gno.land, use your own judgment). Note: .tar.lz4, NOT .tar.zst like the old
+# topaz snapshot — decompression uses lz4, not zstd. This stable URL always
+# points at the latest generation, so no fixed sha256 is pinned here.
+SNAPSHOT_URL="https://server-9.hazennetworksolutions.com/gnoland-db-snapshot.tar.lz4"
 RPC_REMOTE="https://rpc.sapphire.testnets.gno.land"
 FAUCET_URL="https://sapphire.testnets.gno.land/faucet"
 EXPLORER_URL="https://sapphire.testnets.gno.land"
@@ -109,7 +109,7 @@ install_node() {
     # ── Dependencies ──────────────────────────────────────────────────────────
     info "Installing system dependencies..."
     sudo apt-get update -qq
-    sudo apt-get install -y git make wget curl zstd pv python3 build-essential \
+    sudo apt-get install -y git make wget curl zstd liblz4-tool pv python3 build-essential \
         ca-certificates gnupg lsb-release 2>&1 \
         | grep -E "^(Get|Setting|Preparing|Unpacking|Processing)" || true
     success "Dependencies installed."
@@ -292,7 +292,7 @@ EOF
     echo -e "  ${BOLD}Installation complete!${NC}"
     echo ""
     echo "  Next steps:"
-    echo "  → Option [4] Load snapshot   (only if you have a sapphire-specific source)"
+    echo "  → Option [4] Load snapshot   (recommended — much faster sync)"
     echo "  → Option [7] Service management → Start node"
     echo "  → Option [2] Check sync status"
     press_enter
@@ -413,20 +413,15 @@ load_snapshot() {
     echo -e "  ${BOLD}[4] Load Snapshot${NC}\n"
 
     if [[ -z "$SNAPSHOT_URL" ]]; then
-        warn "No sapphire snapshot URL configured."
-        echo ""
-        echo "  The topaz setup used a third-party snapshot"
-        echo "  (snapshots.luckystar.asia/gnolandtopaz/...), but that data is"
-        echo "  specific to topaz's chain-id/genesis and will NOT work here."
-        echo ""
-        echo "  If you have a sapphire-specific snapshot source, set the"
-        echo "  SNAPSHOT_URL variable at the top of this script and re-run."
-        echo "  Otherwise, let the node sync from genesis (option [7] → Start)."
+        warn "No snapshot URL configured. Set SNAPSHOT_URL at the top of this script."
         press_enter
         return
     fi
 
+    require_cmd lz4
+
     echo "  Snapshot source: $SNAPSHOT_URL"
+    echo "  Format: .tar.lz4 (third-party host — not run by Anthropic or gno.land)"
     echo ""
     warn "This will DELETE existing chain data (db and wal)."
     warn "Your keys, config, and secrets will NOT be touched."
@@ -450,9 +445,9 @@ load_snapshot() {
     echo ""
 
     if command -v pv &>/dev/null; then
-        curl -L "$SNAPSHOT_URL" | pv | zstd -d | tar -xf - -C "$DATA_DIR"
+        curl -L "$SNAPSHOT_URL" | pv | lz4 -d | tar -xf - -C "$DATA_DIR"
     else
-        curl -L --progress-bar "$SNAPSHOT_URL" | zstd -d | tar -xf - -C "$DATA_DIR"
+        curl -L --progress-bar "$SNAPSHOT_URL" | lz4 -d | tar -xf - -C "$DATA_DIR"
     fi
 
     echo ""
