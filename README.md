@@ -401,6 +401,5 @@ sudo rm -f /etc/systemd/system/gnoland.service
 rm -rf ~/gno
 rm -f $(command -v gnoland)
 rm -f $(command -v gnokey)
-# veya doğrudan:
 rm -f ~/go/bin/gnoland ~/go/bin/gnokey
 ```
